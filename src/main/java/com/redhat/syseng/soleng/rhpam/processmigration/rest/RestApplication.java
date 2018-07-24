@@ -1,4 +1,4 @@
-package com.redhat.syseng.soleng.rhpam.processmigrationapi.rest;
+package com.redhat.syseng.soleng.rhpam.processmigration.rest;
 
 import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
