@@ -1,8 +1,9 @@
 package com.redhat.syseng.soleng.rhpam.processmigration.rest;
 
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlan;
+import com.redhat.syseng.soleng.rhpam.processmigration.persistence.Persistence;
 import com.redhat.syseng.soleng.rhpam.processmigration.util.MigrationUtils;
-import java.io.IOException;
+import com.redhat.syseng.soleng.rhpam.processmigration.util.PATCH;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -11,14 +12,14 @@ import javax.jms.ConnectionFactory;
 import javax.jms.Queue;
 import javax.naming.InitialContext;
 import javax.naming.NamingException;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
+import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.kie.server.api.model.admin.MigrationReportInstance;
 import org.kie.server.client.admin.impl.ProcessAdminServicesClientImpl;
@@ -33,39 +34,61 @@ public class MigrationServiceApplicatoin {
     private static final String JMS_QUEUE_RESPONSE = "jms/queue/KIE.SERVER.RESPONSE";    
     private static String kieServiceUrl = MigrationUtils.protocol + "://" + MigrationUtils.getKieHost() + ":" + MigrationUtils.getKiePort() + "/" + MigrationUtils.getKieContextRoot() + "services/rest/server";
 
-    @GET
-    @Produces("text/plain")
-    @Path("/hello1/{containerId}")    
-    public Response get1(@PathParam("containerId") String containerId) {
-        System.out.println("!!!!!!!!!!!!!!!! here 1" + containerId);
-        return Response.ok("Hello from MigrationServiceApplicatoin.get1!").build();
-    }
 
     @GET
-    @Produces("text/plain")
-    @Path("/hello2")
-    public Response get2() {
-        System.out.println("!!!!!!!!!!!!!!!! here 2");
-        return Response.ok("Hello from MigrationServiceApplicatoin.get2!").build();
+    @Path("/plan/{planId}")
+    @Consumes({MediaType.APPLICATION_JSON})
+    @Produces({MediaType.APPLICATION_JSON})
+    public Response getPlan(@PathParam("planId") String planId) throws NamingException {
+        System.out.println("!!!!!!!!!!!!!!!! getPlan" + planId);
+        //List<MigrationReportInstance> reports =migrateInstance(plan);
+        //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+        String plan = Persistence.getInstance().retrieveMigrationPlan(planId);
+        String returnJson = "{\"planId\": " + planId + ", \"plan\" " + plan + "}";
+        return Response.ok(returnJson).build();
     }
+        
     
+    @POST
+    @Path("/plan")
+    @Consumes({MediaType.APPLICATION_JSON})
+    @Produces({MediaType.APPLICATION_JSON})
+    public Response submitPlan(MigrationPlan plan) throws NamingException {
+        System.out.println("!!!!!!!!!!!!!!!! submitPlan" + plan);
+        //List<MigrationReportInstance> reports =migrateInstance(plan);
+        //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+        int planId = Persistence.getInstance().addMigrationPlan(plan);
+        String returnJson = "{\"planId\": " + planId + "}";
+        return Response.ok(returnJson).build();
+    }
+        
+    @DELETE
+    @Path("/plan/{planId}")
+    @Consumes({MediaType.APPLICATION_JSON})
+    @Produces({MediaType.APPLICATION_JSON})
+    public Response deletePlan(@PathParam("planId") String planId) throws NamingException {
+        System.out.println("!!!!!!!!!!!!!!!! deletePlan" + planId);
+        //List<MigrationReportInstance> reports =migrateInstance(plan);
+        //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+        Persistence.getInstance().deleteMigrationPlan(planId);
+        String returnJson = "{\"status\": \"deleted\" }";
+        return Response.ok(returnJson).build();
+    }    
     
-    public static void executePlan(HttpServletRequest httpRequest, HttpServletResponse httpResponse) throws NamingException, ServletException, IOException {
-        System.out.println("-----------------------------executePlan started ");
-        MigrationPlan plan = (MigrationPlan) httpRequest.getSession().getAttribute("migrationPlan");
-        logInfo("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan now:" + plan);
-        List<MigrationReportInstance> reports =migrateInstance(plan);
-        System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+    @PATCH
+    @Path("/plan/{planId}")
+    @Consumes({MediaType.APPLICATION_JSON})
+    @Produces({MediaType.APPLICATION_JSON})
+    public Response updatePlan(@PathParam("planId") String planId, MigrationPlan plan) throws NamingException {
+        System.out.println("!!!!!!!!!!!!!!!! updatePlan" + plan);
+        //List<MigrationReportInstance> reports =migrateInstance(plan);
+        //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+        Persistence.getInstance().updateMigrationPlan(planId, plan);
+        String returnJson = "{\"status\": \"updated\" }";
+        return Response.ok(returnJson).build();
+    }    
+    
 
-        httpRequest.getSession().removeAttribute("migrationPlan");
-        httpRequest.getSession().removeAttribute("kieContainers");
-        httpRequest.getSession().removeAttribute("processInfo");
-        httpRequest.setAttribute("migrationReports", reports);
-        RequestDispatcher requestDispatcher = httpRequest.getRequestDispatcher("/migrationReport.jsp");
-        requestDispatcher.forward(httpRequest, httpResponse);        
-        System.out.println("-----------------------------executePlan ended ");
-    }
-    
     public static List<MigrationReportInstance> migrateInstance(MigrationPlan plan) throws NamingException {
 
         ProcessAdminServicesClientImpl client = setupProcessAdminServicesClient(plan, kieServiceUrl, MigrationUtils.getKieUsername(), MigrationUtils.getKiePassword());
