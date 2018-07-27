@@ -1,6 +1,7 @@
 package com.redhat.syseng.soleng.rhpam.processmigration.rest;
 
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlan;
+import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlanUnit;
 import com.redhat.syseng.soleng.rhpam.processmigration.persistence.Persistence;
 import com.redhat.syseng.soleng.rhpam.processmigration.util.MigrationUtils;
 import com.redhat.syseng.soleng.rhpam.processmigration.util.PATCH;
@@ -92,7 +93,8 @@ public class MigrationServiceApplicatoin {
     public static List<MigrationReportInstance> migrateInstance(MigrationPlan plan) throws NamingException {
 
         ProcessAdminServicesClientImpl client = setupProcessAdminServicesClient(plan, kieServiceUrl, MigrationUtils.getKieUsername(), MigrationUtils.getKiePassword());
-        List<MigrationReportInstance> reports = client.migrateProcessInstances(plan.getContainerId(), plan.getProcessInstancesId(), plan.getTargetContainerId(), plan.getTargetProcessId(), plan.getNodeMapping());
+        MigrationPlanUnit unit = plan.getMigrationPlanUnit();
+        List<MigrationReportInstance> reports = client.migrateProcessInstances(unit.getContainerId(), unit.getProcessInstancesId(), unit.getTargetContainerId(), unit.getTargetProcessId(), unit.getNodeMapping());
         return reports;
     }
     
@@ -102,16 +104,16 @@ public class MigrationServiceApplicatoin {
     }    
     
     
-    public static ProcessAdminServicesClientImpl setupProcessAdminServicesClient(MigrationPlan unit, String url, String username, String password) throws NamingException {
+    public static ProcessAdminServicesClientImpl setupProcessAdminServicesClient(MigrationPlan plan, String url, String username, String password) throws NamingException {
 
         String provider_url = System.getenv("KIE_JMS_PROVIDER_URL");
 
         KieServicesConfigurationImpl config = null;
-        if (Boolean.valueOf(unit.getUseRest())) {
-            //REST config
+        if (!Boolean.valueOf(plan.isAsync())) {
+            //REST config 
             config = new KieServicesConfigurationImpl(url, username, password);
         } else {
-            //JMS config
+            //JMS config for Aysnc mode
 
             java.util.Properties env = new java.util.Properties();
             env.put(javax.naming.Context.INITIAL_CONTEXT_FACTORY, "org.jboss.naming.remote.client.InitialContextFactory");

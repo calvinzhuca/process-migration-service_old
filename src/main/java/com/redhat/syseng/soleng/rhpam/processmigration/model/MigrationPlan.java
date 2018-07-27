@@ -1,75 +1,71 @@
 package com.redhat.syseng.soleng.rhpam.processmigration.model;
 
-import java.util.List;
-import java.util.Map;
 import javax.xml.bind.annotation.XmlRootElement;
 
 @XmlRootElement
 public class MigrationPlan {
 
-    private String containerId;
-    private String targetContainerId;
-    private String targetProcessId;
-    private String useRest;
-    private List<Long> processInstancesId;
-    private Map<String, String> nodeMapping ;
+    private int planId;
+    private String name;
+    private String description;
+    private String strategy;
+    private boolean async;      
+    private MigrationPlanUnit migrationPlanUnit;
 
-
-    public String getUseRest() {
-        return useRest;
+    public int getPlanId() {
+        return planId;
     }
 
-    public void setUseRest(String useRest) {
-        this.useRest = useRest;
+    public void setPlanId(int planId) {
+        this.planId = planId;
     }
 
-    public Map<String, String> getNodeMapping() {
-        return nodeMapping;
+    public String getName() {
+        return name;
     }
 
-    public void setNodeMapping(Map<String, String> nodeMapping) {
-        this.nodeMapping = nodeMapping;
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String Description) {
+        this.description = Description;
+    }
+
+    public String getStrategy() {
+        return strategy;
+    }
+
+    public void setStrategy(String strategy) {
+        this.strategy = strategy;
+    }
+
+    public boolean isAsync() {
+        return async;
+    }
+
+    public void setAsync(boolean async) {
+        this.async = async;
+    }
+
+    public MigrationPlanUnit getMigrationPlanUnit() {
+        return migrationPlanUnit;
+    }
+
+    public void setMigrationPlanUnit(MigrationPlanUnit migrationPlanUnit) {
+        this.migrationPlanUnit = migrationPlanUnit;
     }
     
-    public String getContainerId() {
-        return containerId;
-    }
-
-    public void setContainerId(String containerId) {
-        this.containerId = containerId;
-    }
-
-    public String getTargetContainerId() {
-        return targetContainerId;
-    }
-
-    public void setTargetContainerId(String targetContainerId) {
-        this.targetContainerId = targetContainerId;
-    }
-
-    public List<Long> getProcessInstancesId() {
-        return processInstancesId;
-    }
-
-    public void setProcessInstancesId(List<Long> processInstancesId) {
-        this.processInstancesId = processInstancesId;
-    }
-
-
-
-    public String getTargetProcessId() {
-        return targetProcessId;
-    }
-
-    public void setTargetProcessId(String targetProcessId) {
-        this.targetProcessId = targetProcessId;
-    }
+    
 
     @Override
     public String toString() {
-        return "MigrationUnit [containerId=" + containerId + ", targetContainerId=" + targetContainerId
-                + ", processInstanceId=" + processInstancesId + ", targetProcessId=" + targetProcessId 
-                + ", nodeMapping=" + nodeMapping 
-                + ", useRest=" + useRest+ "]";
+        return "MigrationPlan [planId=" + planId + ", name=" + name
+                + ", Description=" + description + ", strategy=" + strategy 
+                + ", async=" + async + ", migrationPlanUnit=" + migrationPlanUnit+ "]";
     }
 }
