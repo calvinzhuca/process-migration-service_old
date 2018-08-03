@@ -32,10 +32,11 @@ public class Persistence {
     }
     
     private void initialCreateTables() {
-        Statement stmt = null;
+        Connection connection;
+        Statement stmt;
         try {
             Class.forName("org.sqlite.JDBC");
-            Connection connection = DriverManager.getConnection(SQLITE_DB_URL);
+            connection = DriverManager.getConnection(SQLITE_DB_URL);
             logger.info("Opened database successfully");
 
             stmt = connection.createStatement();
@@ -44,6 +45,9 @@ public class Persistence {
             //create three tables needed.
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS PLAN_TABLE (plan_id integer primary key autoincrement,  migration_plan TEXT);");
             stmt.executeUpdate("CREATE TABLE IF NOT EXISTS MIGRATION_TABLE (migration_id integer primary key autoincrement,  plan_id integer, submit_time TEXT);");
+            
+            stmt.close();
+            connection.close();            
             logger.info("created all needed tables successfully");
         } catch (ClassNotFoundException | SQLException e) {
             logger.info(e.getClass().getName() + ": " + e.getMessage());
@@ -53,9 +57,8 @@ public class Persistence {
 
 
     public int addPlan(Object migrationPlan) {
-
-        Connection connection = null;
-        Statement stmt = null;
+        Connection connection;
+        Statement stmt;
         int planId = 0;
         try {
             Class.forName("org.sqlite.JDBC");
@@ -66,14 +69,13 @@ public class Persistence {
             stmt = connection.createStatement();
             stmt.setQueryTimeout(30);  // set timeout to 30 sec.
 
-            //String sqlString = "insert into PLAN_TABLE (migration_plan) values(\"" + migrationPlan + "\");";
             String sqlString = "insert into PLAN_TABLE values(null, \"" + migrationPlan + "\");";
-            logger.info("sqlString: " + sqlString);
+            //logger.info("sqlString: " + sqlString);
             stmt.executeUpdate(sqlString);
             sqlString = "SELECT last_insert_rowid() AS planId;";
             ResultSet rs = stmt.executeQuery(sqlString);
             planId = Integer.parseInt(rs.getString("planId"));
-            logger.info("new planId: " + planId);
+            //logger.info("new planId: " + planId);
             
             //connection.commit();
             stmt.close();
@@ -87,9 +89,8 @@ public class Persistence {
     }
     
     public int addMigration(int planId) {
-
-        Connection connection = null;
-        Statement stmt = null;
+        Connection connection;
+        Statement stmt;
         int migrationId = 0;
         try {
             Class.forName("org.sqlite.JDBC");
@@ -101,12 +102,12 @@ public class Persistence {
             stmt.setQueryTimeout(30);  // set timeout to 30 sec.
 
             String sqlString = "insert into MIGRATION_TABLE values(null, \"" + planId + "\", DATETIME('now'));";
-            logger.info("sqlString: " + sqlString);
+            //logger.info("sqlString: " + sqlString);
             stmt.executeUpdate(sqlString);
             sqlString = "SELECT last_insert_rowid() AS migration_id;";
             ResultSet rs = stmt.executeQuery(sqlString);
             migrationId = Integer.parseInt(rs.getString("migration_id"));
-            logger.info("new migrationId: " + migrationId);
+            //logger.info("new migrationId: " + migrationId);
             
             //connection.commit();
             stmt.close();
@@ -119,9 +120,8 @@ public class Persistence {
     }    
 
     public void deletePlan(int planId) {
-
-        Connection connection = null;
-        Statement stmt = null;
+        Connection connection;
+        Statement stmt;
         try {
             Class.forName("org.sqlite.JDBC");
             connection = DriverManager.getConnection(SQLITE_DB_URL);
@@ -149,9 +149,8 @@ public class Persistence {
     }
     
     public void deleteMigration(int migrationId) {
-
-        Connection connection = null;
-        Statement stmt = null;
+        Connection connection;
+        Statement stmt;
         try {
             Class.forName("org.sqlite.JDBC");
             connection = DriverManager.getConnection(SQLITE_DB_URL);
@@ -180,9 +179,8 @@ public class Persistence {
     
     
     public void updatePlan(String planId, Object migrationPlan) {
-
-        Connection connection = null;
-        Statement stmt = null;
+        Connection connection;
+        Statement stmt;
         try {
             Class.forName("org.sqlite.JDBC");
             connection = DriverManager.getConnection(SQLITE_DB_URL);
@@ -209,9 +207,8 @@ public class Persistence {
     }    
     
     public void updateMigration(int migrationId, int planId) {
-
-        Connection connection = null;
-        Statement stmt = null;
+        Connection connection;
+        Statement stmt;
         try {
             Class.forName("org.sqlite.JDBC");
             connection = DriverManager.getConnection(SQLITE_DB_URL);
@@ -238,9 +235,9 @@ public class Persistence {
     }     
 
     public String retrievePlan(String planId) {
-        Connection connection = null;
-        Statement stmt = null;
-        String result = null;
+        Connection connection;
+        Statement stmt;
+        String result = "";
         try {
             Class.forName("org.sqlite.JDBC");
             connection = DriverManager.getConnection(SQLITE_DB_URL);
@@ -249,15 +246,26 @@ public class Persistence {
             stmt = connection.createStatement();
             stmt.setQueryTimeout(30);  // set timeout to 30 sec.
 
-            String sqlString = "SELECT migration_plan FROM PLAN_TABLE where plan_id = \"" + planId + "\";";
-            //logger.info("select string: " + sqlString);
+            String sqlString = "SELECT * FROM PLAN_TABLE";
+            if (null != planId){
+                sqlString = "SELECT * FROM PLAN_TABLE where plan_id = \"" + planId + "\";";
+            }
+            
+            logger.info("select string: " + sqlString);
 
             ResultSet rs = stmt.executeQuery(sqlString);
 
             while (rs.next()) {
-                result = rs.getString("migration_plan");
-                //logger.info("migration_plan = " + result);
-            }
+                planId = rs.getString("plan_id");
+                String migrationPlan = rs.getString("migration_plan");
+                String tmpStr = "{\"planId\":\"" + planId + "\"," 
+                        + "\"migrationPlan\":\"" + migrationPlan + "\"}";
+                if (result == ""){
+                    result = tmpStr;
+                }else{
+                    result = result + "," + tmpStr;
+                }
+            }            
             rs.close();
             stmt.close();
             connection.close();
@@ -271,8 +279,8 @@ public class Persistence {
     }
     
     public String retrieveMigration(String migrationId) {
-        Connection connection = null;
-        Statement stmt = null;
+        Connection connection;
+        Statement stmt;
         String result = "";
         try {
             Class.forName("org.sqlite.JDBC");

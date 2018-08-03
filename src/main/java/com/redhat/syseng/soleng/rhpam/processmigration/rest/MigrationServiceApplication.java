@@ -38,7 +38,7 @@ public class MigrationServiceApplication {
 
 
     @GET
-    @Path("/plan/{planId}")
+    @Path("/plans/{planId}")
     @Consumes({MediaType.APPLICATION_JSON})
     @Produces({MediaType.APPLICATION_JSON})
     public Response getPlan(@PathParam("planId") String planId) throws NamingException {
@@ -54,9 +54,21 @@ public class MigrationServiceApplication {
         return Response.ok(returnJson).build();
     }
         
+
+    @GET
+    @Path("/plans")
+    @Consumes({MediaType.APPLICATION_JSON})
+    @Produces({MediaType.APPLICATION_JSON})
+    public Response getAllPlans() throws NamingException {
+        //System.out.println("!!!!!!!!!!!!!!!! getAllPlans");
+        //List<MigrationReportInstance> reports =migrateInstance(plan);
+        //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+        String returnJson = "{\"result\":[" + Persistence.getInstance().retrievePlan(null) + "]}";
+        return Response.ok(returnJson).build();
+    }
     
     @POST
-    @Path("/plan")
+    @Path("/plans")
     @Consumes({MediaType.APPLICATION_JSON})
     @Produces({MediaType.APPLICATION_JSON})
     public Response submitPlan(MigrationPlan plan) throws NamingException {
@@ -69,7 +81,7 @@ public class MigrationServiceApplication {
     }
         
     @DELETE
-    @Path("/plan/{planId}")
+    @Path("/plans/{planId}")
     @Consumes({MediaType.APPLICATION_JSON})
     @Produces({MediaType.APPLICATION_JSON})
     public Response deletePlan(@PathParam("planId") int planId) throws NamingException {
@@ -82,7 +94,7 @@ public class MigrationServiceApplication {
     }    
     
     @PATCH
-    @Path("/plan/{planId}")
+    @Path("/plans/{planId}")
     @Consumes({MediaType.APPLICATION_JSON})
     @Produces({MediaType.APPLICATION_JSON})
     public Response updatePlan(@PathParam("planId") String planId, MigrationPlan plan) throws NamingException {

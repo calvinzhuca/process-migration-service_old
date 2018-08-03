@@ -10,6 +10,7 @@ package com.redhat.syseng.soleng.rhpam.processmigration.model;
  * @author czhu
  */
 public class MigrationObject {
+    int migrationId;
     int planId;
     
     public int getPlanId() {
