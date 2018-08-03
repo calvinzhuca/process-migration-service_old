@@ -1,5 +1,6 @@
 package com.redhat.syseng.soleng.rhpam.processmigration.rest;
 
+import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationObject;
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlan;
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlanUnit;
 import com.redhat.syseng.soleng.rhpam.processmigration.persistence.Persistence;
@@ -29,7 +30,7 @@ import org.kie.server.client.impl.KieServicesConfigurationImpl;
 
 @ApplicationScoped
 @Path("/")
-public class MigrationServiceApplicatoin {
+public class MigrationServiceApplication {
     private static final String JMS_CONNECTION_FACTORY = "jms/RemoteConnectionFactory";
     private static final String JMS_QUEUE_REQUEST = "jms/queue/KIE.SERVER.REQUEST";
     private static final String JMS_QUEUE_RESPONSE = "jms/queue/KIE.SERVER.RESPONSE";    
@@ -44,8 +45,12 @@ public class MigrationServiceApplicatoin {
         System.out.println("!!!!!!!!!!!!!!!! getPlan" + planId);
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        String plan = Persistence.getInstance().retrieveMigrationPlan(planId);
+        String plan = Persistence.getInstance().retrievePlan(planId);
         String returnJson = "{\"planId\": " + planId + ", \"plan\" " + plan + "}";
+        if (null == plan){
+            returnJson = "{\"status\": \"couldn't find related record\" }";
+            
+        }
         return Response.ok(returnJson).build();
     }
         
@@ -58,7 +63,7 @@ public class MigrationServiceApplicatoin {
         System.out.println("!!!!!!!!!!!!!!!! submitPlan" + plan);
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        int planId = Persistence.getInstance().addMigrationPlan(plan);
+        int planId = Persistence.getInstance().addPlan(plan);
         String returnJson = "{\"planId\": " + planId + "}";
         return Response.ok(returnJson).build();
     }
@@ -67,11 +72,11 @@ public class MigrationServiceApplicatoin {
     @Path("/plan/{planId}")
     @Consumes({MediaType.APPLICATION_JSON})
     @Produces({MediaType.APPLICATION_JSON})
-    public Response deletePlan(@PathParam("planId") String planId) throws NamingException {
+    public Response deletePlan(@PathParam("planId") int planId) throws NamingException {
         System.out.println("!!!!!!!!!!!!!!!! deletePlan" + planId);
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        Persistence.getInstance().deleteMigrationPlan(planId);
+        Persistence.getInstance().deletePlan(planId);
         String returnJson = "{\"status\": \"deleted\" }";
         return Response.ok(returnJson).build();
     }    
@@ -84,12 +89,75 @@ public class MigrationServiceApplicatoin {
         System.out.println("!!!!!!!!!!!!!!!! updatePlan" + plan);
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        Persistence.getInstance().updateMigrationPlan(planId, plan);
+        Persistence.getInstance().updatePlan(planId, plan);
         String returnJson = "{\"status\": \"updated\" }";
         return Response.ok(returnJson).build();
     }    
     
 
+    @GET
+    @Path("/migrations")
+    @Consumes({MediaType.APPLICATION_JSON})
+    @Produces({MediaType.APPLICATION_JSON})
+    public Response getAllMigrations() throws NamingException {
+        System.out.println("!!!!!!!!!!!!!!!! getAllMigrations");
+        String returnJson = "{\"result\":[" + Persistence.getInstance().retrieveMigration(null) + "]}";
+        return Response.ok(returnJson).build();
+    }
+
+    @GET
+    @Path("/migrations/{migrationId}")
+    @Consumes({MediaType.APPLICATION_JSON})
+    @Produces({MediaType.APPLICATION_JSON})
+    public Response getMigration(@PathParam("migrationId") String migrationId) throws NamingException {
+        System.out.println("!!!!!!!!!!!!!!!! getMigration" + migrationId);
+        String returnJson = "{\"result\":[" + Persistence.getInstance().retrieveMigration(migrationId) + "]}";
+        return Response.ok(returnJson).build();
+    }
+    
+    
+    
+    @POST
+    @Path("/migrations")
+    @Consumes({MediaType.APPLICATION_JSON})
+    @Produces({MediaType.APPLICATION_JSON})
+    public Response submitMigration(MigrationObject migrationObject) throws NamingException {
+        int planId = migrationObject.getPlanId();
+        System.out.println("!!!!!!!!!!!!!!!! submitMigration" + planId);
+        //List<MigrationReportInstance> reports =migrateInstance(plan);
+        //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+        int migrationId = Persistence.getInstance().addMigration(planId);
+        String returnJson = "{\"migrationId\": " + migrationId + "}";
+        return Response.ok(returnJson).build();
+    }    
+    
+    @DELETE
+    @Path("/migrations/{migrationId}")
+    @Consumes({MediaType.APPLICATION_JSON})
+    @Produces({MediaType.APPLICATION_JSON})
+    public Response deleteMigration(@PathParam("migrationId") int migrationId) throws NamingException {
+        System.out.println("!!!!!!!!!!!!!!!! deleteMigration" + migrationId);
+        //List<MigrationReportInstance> reports =migrateInstance(plan);
+        //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+        Persistence.getInstance().deleteMigration(migrationId);
+        String returnJson = "{\"status\": \"deleted\" }";
+        return Response.ok(returnJson).build();
+    }    
+
+    
+    @PATCH
+    @Path("/migrations/{migrationId}")
+    @Consumes({MediaType.APPLICATION_JSON})
+    @Produces({MediaType.APPLICATION_JSON})
+    public Response updateMigration(@PathParam("migrationId") int migrationId, MigrationObject migrationObject) throws NamingException {
+        System.out.println("!!!!!!!!!!!!!!!! updateMigration" + migrationObject);
+        //List<MigrationReportInstance> reports =migrateInstance(plan);
+        //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+        Persistence.getInstance().updateMigration(migrationId, migrationObject.getPlanId());
+        String returnJson = "{\"status\": \"updated\" }";
+        return Response.ok(returnJson).build();
+    }      
+    
     public static List<MigrationReportInstance> migrateInstance(MigrationPlan plan) throws NamingException {
 
         ProcessAdminServicesClientImpl client = setupProcessAdminServicesClient(plan, kieServiceUrl, MigrationUtils.getKieUsername(), MigrationUtils.getKiePassword());
@@ -100,7 +168,7 @@ public class MigrationServiceApplicatoin {
     
     
     private static void logInfo(String message) {
-        Logger.getLogger(MigrationServiceApplicatoin.class.getName()).log(Level.INFO, message);
+        Logger.getLogger(MigrationServiceApplication.class.getName()).log(Level.INFO, message);
     }    
     
     

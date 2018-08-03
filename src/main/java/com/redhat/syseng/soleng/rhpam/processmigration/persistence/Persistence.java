@@ -42,7 +42,8 @@ public class Persistence {
             stmt.setQueryTimeout(30);  // set timeout to 30 sec.
 
             //create three tables needed.
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS MIGRATION_PLAN_TABLE (plan_id integer primary key autoincrement,  migration_plan TEXT);");
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS PLAN_TABLE (plan_id integer primary key autoincrement,  migration_plan TEXT);");
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS MIGRATION_TABLE (migration_id integer primary key autoincrement,  plan_id integer, submit_time TEXT);");
             logger.info("created all needed tables successfully");
         } catch (ClassNotFoundException | SQLException e) {
             logger.info(e.getClass().getName() + ": " + e.getMessage());
@@ -51,7 +52,7 @@ public class Persistence {
     }    
 
 
-    public int addMigrationPlan(Object migrationPlan) {
+    public int addPlan(Object migrationPlan) {
 
         Connection connection = null;
         Statement stmt = null;
@@ -65,9 +66,8 @@ public class Persistence {
             stmt = connection.createStatement();
             stmt.setQueryTimeout(30);  // set timeout to 30 sec.
 
-            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS MIGRATION_PLAN_TABLE (plan_id integer primary key autoincrement,  migration_plan TEXT);");
-            //String sqlString = "insert into MIGRATION_PLAN_TABLE (migration_plan) values(\"" + migrationPlan + "\");";
-            String sqlString = "insert into MIGRATION_PLAN_TABLE values(null, \"" + migrationPlan + "\");";
+            //String sqlString = "insert into PLAN_TABLE (migration_plan) values(\"" + migrationPlan + "\");";
+            String sqlString = "insert into PLAN_TABLE values(null, \"" + migrationPlan + "\");";
             logger.info("sqlString: " + sqlString);
             stmt.executeUpdate(sqlString);
             sqlString = "SELECT last_insert_rowid() AS planId;";
@@ -82,11 +82,43 @@ public class Persistence {
             logger.info(e.getClass().getName() + ": " + e.getMessage());
             throw new IllegalStateException(e);
         }
-        //logger.info("persistBindingInfo: planId" + planId + " migrationPlan: " + migrationPlan);
+        //logger.info("addPlan: " + planId + " migrationPlan: " + migrationPlan);
         return planId;
     }
+    
+    public int addMigration(int planId) {
 
-    public void deleteMigrationPlan(String planId) {
+        Connection connection = null;
+        Statement stmt = null;
+        int migrationId = 0;
+        try {
+            Class.forName("org.sqlite.JDBC");
+            connection = DriverManager.getConnection(SQLITE_DB_URL);
+            //connection.setAutoCommit(false);
+            //logger.info("Opened database successfully");
+
+            stmt = connection.createStatement();
+            stmt.setQueryTimeout(30);  // set timeout to 30 sec.
+
+            String sqlString = "insert into MIGRATION_TABLE values(null, \"" + planId + "\", DATETIME('now'));";
+            logger.info("sqlString: " + sqlString);
+            stmt.executeUpdate(sqlString);
+            sqlString = "SELECT last_insert_rowid() AS migration_id;";
+            ResultSet rs = stmt.executeQuery(sqlString);
+            migrationId = Integer.parseInt(rs.getString("migration_id"));
+            logger.info("new migrationId: " + migrationId);
+            
+            //connection.commit();
+            stmt.close();
+            connection.close();
+        } catch (ClassNotFoundException | SQLException e) {
+            logger.info(e.getClass().getName() + ": " + e.getMessage());
+            throw new IllegalStateException(e);
+        }
+        return migrationId;
+    }    
+
+    public void deletePlan(int planId) {
 
         Connection connection = null;
         Statement stmt = null;
@@ -99,7 +131,8 @@ public class Persistence {
             stmt = connection.createStatement();
             stmt.setQueryTimeout(30);  // set timeout to 30 sec.
 
-            String sqlString = "delete from MIGRATION_PLAN_TABLE where plan_id= \"" + planId + "\";";
+            String sqlString = "delete from PLAN_TABLE where plan_id= \"" + planId + "\";";
+            //logger.info("delete string: " + sqlString);            
             logger.info("delete string: " + sqlString);
             stmt.executeUpdate(sqlString);
             //connection.commit();
@@ -112,10 +145,10 @@ public class Persistence {
             //no need to further throw exception here, it could be between tests the database info might be deleted already.
             logger.info(e.getClass().getName() + ": " + e.getMessage());
         }
-        logger.info("deleteMigrationPlan " + planId);
+        logger.info("deletePlan " + planId);
     }
     
-    public void updateMigrationPlan(String planId, Object migrationPlan) {
+    public void deleteMigration(int migrationId) {
 
         Connection connection = null;
         Statement stmt = null;
@@ -128,7 +161,38 @@ public class Persistence {
             stmt = connection.createStatement();
             stmt.setQueryTimeout(30);  // set timeout to 30 sec.
 
-            String sqlString = "update MIGRATION_PLAN_TABLE set migration_plan = \"" + migrationPlan + "\" where plan_id= \"" + planId + "\";";
+            String sqlString = "delete from MIGRATION_TABLE where migration_id= \"" + migrationId + "\";";
+            //logger.info("delete string: " + sqlString);
+            stmt.executeUpdate(sqlString);
+            //connection.commit();
+            stmt.close();
+            connection.close();
+        } catch (ClassNotFoundException e) {
+            logger.info(e.getClass().getName() + ": " + e.getMessage());
+            throw new IllegalStateException("sqlite class is not found, could be classpath issue: " + e);
+        } catch (SQLException e) {
+            //no need to further throw exception here, it could be between tests the database info might be deleted already.
+            logger.info(e.getClass().getName() + ": " + e.getMessage());
+        }
+        logger.info("deleteMigration " + migrationId);
+    }
+    
+    
+    
+    public void updatePlan(String planId, Object migrationPlan) {
+
+        Connection connection = null;
+        Statement stmt = null;
+        try {
+            Class.forName("org.sqlite.JDBC");
+            connection = DriverManager.getConnection(SQLITE_DB_URL);
+            //connection.setAutoCommit(false);
+            //logger.info("Opened database successfully");
+
+            stmt = connection.createStatement();
+            stmt.setQueryTimeout(30);  // set timeout to 30 sec.
+
+            String sqlString = "update PLAN_TABLE set migration_plan = \"" + migrationPlan + "\" where plan_id= \"" + planId + "\";";
             logger.info("update string: " + sqlString);
             stmt.executeUpdate(sqlString);
             //connection.commit();
@@ -141,10 +205,39 @@ public class Persistence {
             //no need to further throw exception here, it could be between tests the database info might be deleted already.
             logger.info(e.getClass().getName() + ": " + e.getMessage());
         }
-        logger.info("updateMigrationPlan " + planId);
+        logger.info("updatePlan " + planId);
     }    
+    
+    public void updateMigration(int migrationId, int planId) {
 
-    public String retrieveMigrationPlan(String planId) {
+        Connection connection = null;
+        Statement stmt = null;
+        try {
+            Class.forName("org.sqlite.JDBC");
+            connection = DriverManager.getConnection(SQLITE_DB_URL);
+            //connection.setAutoCommit(false);
+            //logger.info("Opened database successfully");
+
+            stmt = connection.createStatement();
+            stmt.setQueryTimeout(30);  // set timeout to 30 sec.
+
+            String sqlString = "update MIGRATION_TABLE set plan_id = \"" + planId + "\" where migration_id= \"" + migrationId + "\";";
+            logger.info("update string: " + sqlString);
+            stmt.executeUpdate(sqlString);
+            //connection.commit();
+            stmt.close();
+            connection.close();
+        } catch (ClassNotFoundException e) {
+            logger.info(e.getClass().getName() + ": " + e.getMessage());
+            throw new IllegalStateException("sqlite class is not found, could be classpath issue: " + e);
+        } catch (SQLException e) {
+            //no need to further throw exception here, it could be between tests the database info might be deleted already.
+            logger.info(e.getClass().getName() + ": " + e.getMessage());
+        }
+        logger.info("updateMigration " + planId);
+    }     
+
+    public String retrievePlan(String planId) {
         Connection connection = null;
         Statement stmt = null;
         String result = null;
@@ -156,7 +249,7 @@ public class Persistence {
             stmt = connection.createStatement();
             stmt.setQueryTimeout(30);  // set timeout to 30 sec.
 
-            String sqlString = "SELECT migration_plan FROM MIGRATION_PLAN_TABLE where plan_id = \"" + planId + "\";";
+            String sqlString = "SELECT migration_plan FROM PLAN_TABLE where plan_id = \"" + planId + "\";";
             //logger.info("select string: " + sqlString);
 
             ResultSet rs = stmt.executeQuery(sqlString);
@@ -172,8 +265,54 @@ public class Persistence {
             logger.info(e.getClass().getName() + ": " + e.getMessage());
             throw new IllegalStateException(e);
         }
-        //logger.info("retrieveBindingInfo: " + planId);
+        //logger.info("retrievePlan: " + result);
         return result;
 
     }
+    
+    public String retrieveMigration(String migrationId) {
+        Connection connection = null;
+        Statement stmt = null;
+        String result = "";
+        try {
+            Class.forName("org.sqlite.JDBC");
+            connection = DriverManager.getConnection(SQLITE_DB_URL);
+            //logger.info("Opened database successfully");
+
+            stmt = connection.createStatement();
+            stmt.setQueryTimeout(30);  // set timeout to 30 sec.
+
+            String sqlString = "SELECT * FROM MIGRATION_TABLE";
+            if (null != migrationId){
+                sqlString = "SELECT * FROM MIGRATION_TABLE where migration_id = \"" + migrationId + "\";";
+            }
+
+            //logger.info("select string: " + sqlString);
+
+            ResultSet rs = stmt.executeQuery(sqlString);
+
+            while (rs.next()) {
+                String tmpId = rs.getString("migration_id");
+                String planId = rs.getString("plan_id");
+                String submitTime = rs.getString("submit_time");
+                String tmpStr = "{\"migrationId\":\"" + tmpId + "\"," 
+                        + "\"planId\":\"" + planId + "\"," 
+                        + "\"submitTime\":\"" + submitTime + "\"}";
+                if (result == ""){
+                    result = tmpStr;
+                }else{
+                    result = result + "," + tmpStr;
+                }
+            }
+            rs.close();
+            stmt.close();
+            connection.close();
+        } catch (ClassNotFoundException | SQLException e) {
+            logger.info(e.getClass().getName() + ": " + e.getMessage());
+            throw new IllegalStateException(e);
+        }
+        //logger.info("retrieveMigration: " + result);
+        return result;
+
+    }    
 }
