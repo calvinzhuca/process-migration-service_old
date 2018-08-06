@@ -39,6 +39,7 @@ public class MigrationUtils {
     private static String kieUsername;
     private static String kiePassword;
     public static String protocol = "http";
+    public static String jmsProtocol = "http-remoting";
 
     public static String getKieHost() {
         if (kieHost == null) {

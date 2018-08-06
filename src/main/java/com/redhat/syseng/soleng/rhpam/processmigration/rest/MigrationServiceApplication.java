@@ -37,7 +37,8 @@ public class MigrationServiceApplication {
     private static final String JMS_CONNECTION_FACTORY = "jms/RemoteConnectionFactory";
     private static final String JMS_QUEUE_REQUEST = "jms/queue/KIE.SERVER.REQUEST";
     private static final String JMS_QUEUE_RESPONSE = "jms/queue/KIE.SERVER.RESPONSE";    
-    private static String kieServiceUrl = MigrationUtils.protocol + "://" + MigrationUtils.getKieHost() + ":" + MigrationUtils.getKiePort() + "/" + MigrationUtils.getKieContextRoot() + "services/rest/server";
+    private static final String kieServiceUrl = MigrationUtils.protocol + "://" + MigrationUtils.getKieHost() + ":" + MigrationUtils.getKiePort() + "/" + MigrationUtils.getKieContextRoot() + "services/rest/server";
+    private static final String kieJmsServiceUrl = MigrationUtils.jmsProtocol  + "://" + MigrationUtils.getKieHost() + ":" + MigrationUtils.getKiePort();
 
 
     @GET
@@ -192,7 +193,7 @@ public class MigrationServiceApplication {
     
     public static List<MigrationReportInstance> migrateInstance(MigrationPlan plan) throws NamingException {
 
-        ProcessAdminServicesClientImpl client = setupProcessAdminServicesClient(plan, kieServiceUrl, MigrationUtils.getKieUsername(), MigrationUtils.getKiePassword());
+        ProcessAdminServicesClientImpl client = setupProcessAdminServicesClient(plan, kieServiceUrl, MigrationUtils.getKieUsername(), MigrationUtils.getKiePassword(), plan.isAsync());
         MigrationPlanUnit unit = plan.getMigrationPlanUnit();
         List<MigrationReportInstance> reports = client.migrateProcessInstances(unit.getContainerId(), unit.getProcessInstancesId(), unit.getTargetContainerId(), unit.getTargetProcessId(), unit.getNodeMapping());
         return reports;
@@ -204,20 +205,26 @@ public class MigrationServiceApplication {
     }    
     
     
-    public static ProcessAdminServicesClientImpl setupProcessAdminServicesClient(MigrationPlan plan, String url, String username, String password) throws NamingException {
+    public static ProcessAdminServicesClientImpl setupProcessAdminServicesClient(MigrationPlan plan, String url, String username, String password, boolean isAsync) throws NamingException {
 
-        String provider_url = System.getenv("KIE_JMS_PROVIDER_URL");
 
         KieServicesConfigurationImpl config = null;
-        if (!Boolean.valueOf(plan.isAsync())) {
-            //REST config 
+        if (!isAsync) {
+            //REST config for sync mode
+            logInfo("!!!!!!!!!!!!!! sync mode using REST client");
             config = new KieServicesConfigurationImpl(url, username, password);
+
         } else {
             //JMS config for Aysnc mode
+            logInfo("!!!!!!!!!!!!!! Async mode using JMS client");
+            
+            logInfo(" kieJmsServiceUrl: " + kieJmsServiceUrl);
+            logInfo(" username: " + username);
+            logInfo(" password: " + password);
 
             java.util.Properties env = new java.util.Properties();
             env.put(javax.naming.Context.INITIAL_CONTEXT_FACTORY, "org.jboss.naming.remote.client.InitialContextFactory");
-            env.put(javax.naming.Context.PROVIDER_URL, provider_url);
+            env.put(javax.naming.Context.PROVIDER_URL, kieJmsServiceUrl);
             env.put(javax.naming.Context.SECURITY_PRINCIPAL, username);
             env.put(javax.naming.Context.SECURITY_CREDENTIALS, password);
             InitialContext ctx = new InitialContext(env);

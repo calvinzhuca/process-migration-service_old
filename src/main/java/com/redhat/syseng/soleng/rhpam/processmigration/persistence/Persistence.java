@@ -249,7 +249,7 @@ public class Persistence {
                 sqlString = "SELECT * FROM PLAN_TABLE where plan_id = \"" + planId + "\";";
             }
             
-            logger.info("select string: " + sqlString);
+            //logger.info("select string: " + sqlString);
 
             ResultSet rs = stmt.executeQuery(sqlString);
 
