@@ -5,20 +5,12 @@ import javax.xml.bind.annotation.XmlRootElement;
 @XmlRootElement
 public class MigrationPlan {
 
-    private int planId;
+
     private String name;
     private String description;
     private String strategy;
     private boolean async;      
     private MigrationPlanUnit migrationPlanUnit;
-
-    public int getPlanId() {
-        return planId;
-    }
-
-    public void setPlanId(int planId) {
-        this.planId = planId;
-    }
 
     public String getName() {
         return name;
@@ -64,7 +56,7 @@ public class MigrationPlan {
 
     @Override
     public String toString() {
-        return "MigrationPlan [planId=" + planId + ", name=" + name
+        return "MigrationPlan [name=" + name
                 + ", Description=" + description + ", strategy=" + strategy 
                 + ", async=" + async + ", migrationPlanUnit=" + migrationPlanUnit+ "]";
     }

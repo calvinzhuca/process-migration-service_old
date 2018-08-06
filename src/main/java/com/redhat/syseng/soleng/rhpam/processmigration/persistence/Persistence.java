@@ -23,9 +23,7 @@ public class Persistence {
     public static Persistence getInstance() {
         if (INSTANCE == null) {
             synchronized (Persistence.class) {
-                if (INSTANCE == null) {
                     INSTANCE = new Persistence();
-                }
             }
         }
         return INSTANCE;
@@ -48,15 +46,15 @@ public class Persistence {
             
             stmt.close();
             connection.close();            
-            logger.info("created all needed tables successfully");
         } catch (ClassNotFoundException | SQLException e) {
             logger.info(e.getClass().getName() + ": " + e.getMessage());
             throw new IllegalStateException(e);
         }
+            logger.info("created all needed tables successfully");
     }    
 
 
-    public int addPlan(Object migrationPlan) {
+    public int addPlan(String migrationPlan) {
         Connection connection;
         Statement stmt;
         int planId = 0;
@@ -70,7 +68,7 @@ public class Persistence {
             stmt.setQueryTimeout(30);  // set timeout to 30 sec.
 
             String sqlString = "insert into PLAN_TABLE values(null, \"" + migrationPlan + "\");";
-            //logger.info("sqlString: " + sqlString);
+            logger.info("sqlString: " + sqlString);
             stmt.executeUpdate(sqlString);
             sqlString = "SELECT last_insert_rowid() AS planId;";
             ResultSet rs = stmt.executeQuery(sqlString);
@@ -88,7 +86,7 @@ public class Persistence {
         return planId;
     }
     
-    public int addMigration(int planId) {
+    public int addMigration(String planId) {
         Connection connection;
         Statement stmt;
         int migrationId = 0;
@@ -119,7 +117,7 @@ public class Persistence {
         return migrationId;
     }    
 
-    public void deletePlan(int planId) {
+    public void deletePlan(String planId) {
         Connection connection;
         Statement stmt;
         try {
@@ -206,7 +204,7 @@ public class Persistence {
         logger.info("updatePlan " + planId);
     }    
     
-    public void updateMigration(int migrationId, int planId) {
+    public void updateMigration(String migrationId, String planId) {
         Connection connection;
         Statement stmt;
         try {
@@ -258,6 +256,7 @@ public class Persistence {
             while (rs.next()) {
                 planId = rs.getString("plan_id");
                 String migrationPlan = rs.getString("migration_plan");
+                migrationPlan = migrationPlan.replaceAll("&quote;","\"");
                 String tmpStr = "{\"planId\":\"" + planId + "\"," 
                         + "\"migrationPlan\":\"" + migrationPlan + "\"}";
                 if (result == ""){

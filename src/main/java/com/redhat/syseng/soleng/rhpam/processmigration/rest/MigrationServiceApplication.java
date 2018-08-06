@@ -1,7 +1,10 @@
 package com.redhat.syseng.soleng.rhpam.processmigration.rest;
 
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationObject;
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlan;
+import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlanTableObject;
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlanUnit;
 import com.redhat.syseng.soleng.rhpam.processmigration.persistence.Persistence;
 import com.redhat.syseng.soleng.rhpam.processmigration.util.MigrationUtils;
@@ -45,9 +48,10 @@ public class MigrationServiceApplication {
         System.out.println("!!!!!!!!!!!!!!!! getPlan" + planId);
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        String plan = Persistence.getInstance().retrievePlan(planId);
-        String returnJson = "{\"planId\": " + planId + ", \"plan\" " + plan + "}";
-        if (null == plan){
+        String returnJson = Persistence.getInstance().retrievePlan(planId);
+        System.out.println("!!!!!!!!!!!!!!!!!!!getPlan: " + returnJson);
+        //String returnJson = "{\"planId\": " + planId + ", \"plan\" " + plan + "}";
+        if (null == returnJson || returnJson.equals("")){
             returnJson = "{\"status\": \"couldn't find related record\" }";
             
         }
@@ -63,7 +67,11 @@ public class MigrationServiceApplication {
         //System.out.println("!!!!!!!!!!!!!!!! getAllPlans");
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        String returnJson = "{\"result\":[" + Persistence.getInstance().retrievePlan(null) + "]}";
+        String returnJson = Persistence.getInstance().retrievePlan(null);
+        if (null == returnJson || returnJson.equals("")){
+            returnJson = "{\"status\": \"couldn't find related record\" }";
+            
+        }
         return Response.ok(returnJson).build();
     }
     
@@ -75,7 +83,14 @@ public class MigrationServiceApplication {
         System.out.println("!!!!!!!!!!!!!!!! submitPlan" + plan);
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        int planId = Persistence.getInstance().addPlan(plan);
+        Gson gson = new GsonBuilder().create();
+        String planInString = gson.toJson(plan);
+        System.out.println("!!!!!!!!!!!!!!!! planInString" + planInString);
+        planInString = planInString.replaceAll("\"","&quote;");
+        System.out.println("!!!!!!!!!!!!!!!! planInString" + planInString);
+        
+        
+        int planId = Persistence.getInstance().addPlan(planInString);
         String returnJson = "{\"planId\": " + planId + "}";
         return Response.ok(returnJson).build();
     }
@@ -84,7 +99,7 @@ public class MigrationServiceApplication {
     @Path("/plans/{planId}")
     @Consumes({MediaType.APPLICATION_JSON})
     @Produces({MediaType.APPLICATION_JSON})
-    public Response deletePlan(@PathParam("planId") int planId) throws NamingException {
+    public Response deletePlan(@PathParam("planId") String planId) throws NamingException {
         System.out.println("!!!!!!!!!!!!!!!! deletePlan" + planId);
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
@@ -134,9 +149,14 @@ public class MigrationServiceApplication {
     @Consumes({MediaType.APPLICATION_JSON})
     @Produces({MediaType.APPLICATION_JSON})
     public Response submitMigration(MigrationObject migrationObject) throws NamingException {
-        int planId = migrationObject.getPlanId();
-        System.out.println("!!!!!!!!!!!!!!!! submitMigration" + planId);
-        //List<MigrationReportInstance> reports =migrateInstance(plan);
+        String planId = migrationObject.getPlanId();
+        System.out.println("!!!!!!!!!!!!!!!! submitMigration: " + planId);
+        String planinJson = Persistence.getInstance().retrievePlan(planId);
+        System.out.println("!!!!!!!!!!!!!!!!!!!!! planinJson: " + planinJson);
+        Gson gson = new Gson();
+        MigrationPlanTableObject plan = gson.fromJson(planinJson, MigrationPlanTableObject.class);
+        System.out.println("!!!!!!!!!!!!!!!!!!!!! MigrationPlan: " + plan);
+       // List<MigrationReportInstance> reports =migrateInstance();
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
         int migrationId = Persistence.getInstance().addMigration(planId);
         String returnJson = "{\"migrationId\": " + migrationId + "}";
@@ -161,7 +181,7 @@ public class MigrationServiceApplication {
     @Path("/migrations/{migrationId}")
     @Consumes({MediaType.APPLICATION_JSON})
     @Produces({MediaType.APPLICATION_JSON})
-    public Response updateMigration(@PathParam("migrationId") int migrationId, MigrationObject migrationObject) throws NamingException {
+    public Response updateMigration(@PathParam("migrationId") String migrationId, MigrationObject migrationObject) throws NamingException {
         System.out.println("!!!!!!!!!!!!!!!! updateMigration" + migrationObject);
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
