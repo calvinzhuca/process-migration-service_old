@@ -11,7 +11,7 @@ package com.redhat.syseng.soleng.rhpam.processmigration.model;
  */
 public class MigrationPlanTableObject {
     String planId;
-    MigrationPlan plan;
+    MigrationPlan migrationPlan;
 
     public String getPlanId() {
         return planId;
@@ -21,17 +21,18 @@ public class MigrationPlanTableObject {
         this.planId = planId;
     }
 
-    public MigrationPlan getPlan() {
-        return plan;
+    public MigrationPlan getMigrationPlan() {
+        return migrationPlan;
     }
 
-    public void setPlan(MigrationPlan plan) {
-        this.plan = plan;
+    public void setMigrationPlan(MigrationPlan migrationPlan) {
+        this.migrationPlan = migrationPlan;
     }
-    
+
+
     @Override
     public String toString() {
-        return "MigrationPlan [planId=" + planId  + ", MigrationPlan=" + plan+ "]";
+        return "MigrationPlan [planId=" + planId  + ", migrationPlan=" + migrationPlan+ "]";
     }    
     
 }

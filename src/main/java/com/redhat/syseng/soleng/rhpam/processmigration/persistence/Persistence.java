@@ -258,7 +258,7 @@ public class Persistence {
                 String migrationPlan = rs.getString("migration_plan");
                 migrationPlan = migrationPlan.replaceAll("&quote;","\"");
                 String tmpStr = "{\"planId\":\"" + planId + "\"," 
-                        + "\"migrationPlan\":\"" + migrationPlan + "\"}";
+                        + "\"migrationPlan\":" + migrationPlan + "}";
                 if (result == ""){
                     result = tmpStr;
                 }else{

@@ -114,12 +114,15 @@ public class MigrationServiceApplication {
     @Produces({MediaType.APPLICATION_JSON})
     public Response updatePlan(@PathParam("planId") String planId, MigrationPlan plan) throws NamingException {
         System.out.println("!!!!!!!!!!!!!!!! updatePlan" + plan);
-        //List<MigrationReportInstance> reports =migrateInstance(plan);
-        //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        Persistence.getInstance().updatePlan(planId, plan);
+        Gson gson = new GsonBuilder().create();
+        String planInString = gson.toJson(plan);
+        planInString = planInString.replaceAll("\"","&quote;");
+        Persistence.getInstance().updatePlan(planId, planInString);
         String returnJson = "{\"status\": \"updated\" }";
         return Response.ok(returnJson).build();
     }    
+
+
     
 
     @GET
@@ -150,16 +153,13 @@ public class MigrationServiceApplication {
     @Produces({MediaType.APPLICATION_JSON})
     public Response submitMigration(MigrationObject migrationObject) throws NamingException {
         String planId = migrationObject.getPlanId();
-        System.out.println("!!!!!!!!!!!!!!!! submitMigration: " + planId);
         String planinJson = Persistence.getInstance().retrievePlan(planId);
-        System.out.println("!!!!!!!!!!!!!!!!!!!!! planinJson: " + planinJson);
         Gson gson = new Gson();
-        MigrationPlanTableObject plan = gson.fromJson(planinJson, MigrationPlanTableObject.class);
-        System.out.println("!!!!!!!!!!!!!!!!!!!!! MigrationPlan: " + plan);
-       // List<MigrationReportInstance> reports =migrateInstance();
-        //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+        MigrationPlanTableObject planObject = gson.fromJson(planinJson, MigrationPlanTableObject.class);
+        List<MigrationReportInstance> reports =migrateInstance(planObject.getMigrationPlan());
+        System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
         int migrationId = Persistence.getInstance().addMigration(planId);
-        String returnJson = "{\"migrationId\": " + migrationId + "}";
+        String returnJson = "{\"migrationId\": " + migrationId + ", \"MigrationReports\":" + reports + "}";
         return Response.ok(returnJson).build();
     }    
     
