@@ -8,8 +8,7 @@ public class MigrationPlan {
 
     private String name;
     private String description;
-    private String strategy;
-    private boolean async;      
+    private boolean rest;      
     private MigrationPlanUnit migrationPlanUnit;
 
     public String getName() {
@@ -28,21 +27,14 @@ public class MigrationPlan {
         this.description = Description;
     }
 
-    public String getStrategy() {
-        return strategy;
+    public boolean isRest() {
+        return rest;
     }
 
-    public void setStrategy(String strategy) {
-        this.strategy = strategy;
+    public void setRest(boolean rest) {
+        this.rest = rest;
     }
 
-    public boolean isAsync() {
-        return async;
-    }
-
-    public void setAsync(boolean async) {
-        this.async = async;
-    }
 
     public MigrationPlanUnit getMigrationPlanUnit() {
         return migrationPlanUnit;
@@ -57,7 +49,7 @@ public class MigrationPlan {
     @Override
     public String toString() {
         return "MigrationPlan [name=" + name
-                + ", Description=" + description + ", strategy=" + strategy 
-                + ", async=" + async + ", migrationPlanUnit=" + migrationPlanUnit+ "]";
+                + ", Description=" + description 
+                + ", rest=" + rest + ", migrationPlanUnit=" + migrationPlanUnit+ "]";
     }
 }

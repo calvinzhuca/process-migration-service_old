@@ -5,13 +5,17 @@
  */
 package com.redhat.syseng.soleng.rhpam.processmigration.model;
 
+import java.util.List;
+
 /**
  *
  * @author czhu
  */
 public class MigrationObject {
-    String migrationId;
-    String planId;
+    private String migrationId;
+    private String planId;
+    private List<Long> processInstancesId;    
+    private Execution execution;
     
     public String getPlanId() {
         return planId;
@@ -21,8 +25,34 @@ public class MigrationObject {
         this.planId = planId;
     }
 
+    public List<Long> getProcessInstancesId() {
+        return processInstancesId;
+    }
+
+    public void setProcessInstancesId(List<Long> processInstancesId) {
+        this.processInstancesId = processInstancesId;
+    }
+
+    public String getMigrationId() {
+        return migrationId;
+    }
+
+    public void setMigrationId(String migrationId) {
+        this.migrationId = migrationId;
+    }
+
+    public Execution getExecution() {
+        return execution;
+    }
+
+    public void setExecution(Execution execution) {
+        this.execution = execution;
+    }
+    
     @Override
     public String toString() {
-        return "MigrationObject [planId=" + planId + "]";
+        return "MigrationObject [planId=" + planId 
+                + ", processInstanceId=" + processInstancesId
+                + ", execution=" + execution + "]";
     }    
 }

@@ -5,17 +5,14 @@ import com.google.gson.GsonBuilder;
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationObject;
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlan;
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlanTableObject;
-import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlanUnit;
 import com.redhat.syseng.soleng.rhpam.processmigration.persistence.Persistence;
 import com.redhat.syseng.soleng.rhpam.processmigration.util.MigrationUtils;
 import com.redhat.syseng.soleng.rhpam.processmigration.util.PATCH;
+import java.text.ParseException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.enterprise.context.ApplicationScoped;
-import javax.jms.ConnectionFactory;
-import javax.jms.Queue;
-import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -27,19 +24,10 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.kie.server.api.model.admin.MigrationReportInstance;
-import org.kie.server.client.admin.impl.ProcessAdminServicesClientImpl;
-import org.kie.server.client.impl.KieServicesClientImpl;
-import org.kie.server.client.impl.KieServicesConfigurationImpl;
 
 @ApplicationScoped
 @Path("/")
 public class MigrationServiceApplication {
-    private static final String JMS_CONNECTION_FACTORY = "jms/RemoteConnectionFactory";
-    private static final String JMS_QUEUE_REQUEST = "jms/queue/KIE.SERVER.REQUEST";
-    private static final String JMS_QUEUE_RESPONSE = "jms/queue/KIE.SERVER.RESPONSE";    
-    private static final String kieServiceUrl = MigrationUtils.protocol + "://" + MigrationUtils.getKieHost() + ":" + MigrationUtils.getKiePort() + "/" + MigrationUtils.getKieContextRoot() + "services/rest/server";
-    private static final String kieJmsServiceUrl = MigrationUtils.jmsProtocol  + "://" + MigrationUtils.getKieHost() + ":" + MigrationUtils.getKiePort();
-
 
     @GET
     @Path("/plans/{planId}")
@@ -52,13 +40,12 @@ public class MigrationServiceApplication {
         String returnJson = Persistence.getInstance().retrievePlan(planId);
         System.out.println("!!!!!!!!!!!!!!!!!!!getPlan: " + returnJson);
         //String returnJson = "{\"planId\": " + planId + ", \"plan\" " + plan + "}";
-        if (null == returnJson || returnJson.equals("")){
+        if (null == returnJson || returnJson.equals("")) {
             returnJson = "{\"status\": \"couldn't find related record\" }";
-            
+
         }
         return Response.ok(returnJson).build();
     }
-        
 
     @GET
     @Path("/plans")
@@ -69,13 +56,13 @@ public class MigrationServiceApplication {
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
         String returnJson = Persistence.getInstance().retrievePlan(null);
-        if (null == returnJson || returnJson.equals("")){
+        if (null == returnJson || returnJson.equals("")) {
             returnJson = "{\"status\": \"couldn't find related record\" }";
-            
+
         }
         return Response.ok(returnJson).build();
     }
-    
+
     @POST
     @Path("/plans")
     @Consumes({MediaType.APPLICATION_JSON})
@@ -87,15 +74,14 @@ public class MigrationServiceApplication {
         Gson gson = new GsonBuilder().create();
         String planInString = gson.toJson(plan);
         System.out.println("!!!!!!!!!!!!!!!! planInString" + planInString);
-        planInString = planInString.replaceAll("\"","&quote;");
+        planInString = planInString.replaceAll("\"", "&quote;");
         System.out.println("!!!!!!!!!!!!!!!! planInString" + planInString);
-        
-        
+
         int planId = Persistence.getInstance().addPlan(planInString);
         String returnJson = "{\"planId\": " + planId + "}";
         return Response.ok(returnJson).build();
     }
-        
+
     @DELETE
     @Path("/plans/{planId}")
     @Consumes({MediaType.APPLICATION_JSON})
@@ -107,8 +93,8 @@ public class MigrationServiceApplication {
         Persistence.getInstance().deletePlan(planId);
         String returnJson = "{\"status\": \"deleted\" }";
         return Response.ok(returnJson).build();
-    }    
-    
+    }
+
     @PATCH
     @Path("/plans/{planId}")
     @Consumes({MediaType.APPLICATION_JSON})
@@ -117,14 +103,11 @@ public class MigrationServiceApplication {
         System.out.println("!!!!!!!!!!!!!!!! updatePlan" + plan);
         Gson gson = new GsonBuilder().create();
         String planInString = gson.toJson(plan);
-        planInString = planInString.replaceAll("\"","&quote;");
+        planInString = planInString.replaceAll("\"", "&quote;");
         Persistence.getInstance().updatePlan(planId, planInString);
         String returnJson = "{\"status\": \"updated\" }";
         return Response.ok(returnJson).build();
-    }    
-
-
-    
+    }
 
     @GET
     @Path("/migrations")
@@ -132,7 +115,7 @@ public class MigrationServiceApplication {
     @Produces({MediaType.APPLICATION_JSON})
     public Response getAllMigrations() throws NamingException {
         System.out.println("!!!!!!!!!!!!!!!! getAllMigrations");
-        String returnJson = "{\"result\":[" + Persistence.getInstance().retrieveMigration(null) + "]}";
+        String returnJson = "{\"result\":[" + Persistence.getInstance().retrieveMigrationRecord(null) + "]}";
         return Response.ok(returnJson).build();
     }
 
@@ -142,28 +125,42 @@ public class MigrationServiceApplication {
     @Produces({MediaType.APPLICATION_JSON})
     public Response getMigration(@PathParam("migrationId") String migrationId) throws NamingException {
         System.out.println("!!!!!!!!!!!!!!!! getMigration" + migrationId);
-        String returnJson = "{\"result\":[" + Persistence.getInstance().retrieveMigration(migrationId) + "]}";
+        String returnJson = "{\"result\":[" + Persistence.getInstance().retrieveMigrationRecord(migrationId) + "]}";
         return Response.ok(returnJson).build();
     }
-    
-    
-    
+
     @POST
     @Path("/migrations")
     @Consumes({MediaType.APPLICATION_JSON})
     @Produces({MediaType.APPLICATION_JSON})
-    public Response submitMigration(MigrationObject migrationObject) throws NamingException {
+    public Response submitMigration(MigrationObject migrationObject) throws NamingException, ParseException {
         String planId = migrationObject.getPlanId();
         String planinJson = Persistence.getInstance().retrievePlan(planId);
-        Gson gson = new Gson();
+       Gson gson = new Gson();
         MigrationPlanTableObject planObject = gson.fromJson(planinJson, MigrationPlanTableObject.class);
-        List<MigrationReportInstance> reports =migrateInstance(planObject.getMigrationPlan());
-        System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        int migrationId = Persistence.getInstance().addMigration(planId);
-        String returnJson = "{\"migrationId\": " + migrationId + ", \"MigrationReports\":" + reports + "}";
+        String migrationId;
+        String returnJson;
+
+        if (null != migrationObject.getExecution()) {
+            //async, schedule the run
+            migrationId = Persistence.getInstance().addMigrationRecord(planId, migrationObject.getProcessInstancesId(), migrationObject.getExecution().getExecuteTime(), migrationObject.getExecution().getCallbackUrl());
+            MigrationUtils.scheduleMigration(migrationId, migrationObject, planObject);
+            //only need to return migrationId for async, because the report will be stored later, plus callback...
+            returnJson = "{\"migrationId\":\"" + migrationId + "\"}";
+        } else {
+            //sync, call KIE directly
+            migrationId = Persistence.getInstance().addMigrationRecord(planId, migrationObject.getProcessInstancesId(), "", "");
+            List<MigrationReportInstance> reports = MigrationUtils.migrateInstance(planObject.getMigrationPlan(), migrationObject.getProcessInstancesId());
+            //logInfo("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!reports " + reports);
+            Persistence.getInstance().updateMigrationRecord(migrationId, migrationObject.getPlanId(), migrationObject.getProcessInstancesId(), reports);
+
+            System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
+            returnJson = "{\"migrationId\":\"" + migrationId + "\", \"MigrationReports\":\"" + reports + "\"}";
+
+        }
         return Response.ok(returnJson).build();
-    }    
-    
+    }
+
     @DELETE
     @Path("/migrations/{migrationId}")
     @Consumes({MediaType.APPLICATION_JSON})
@@ -172,12 +169,11 @@ public class MigrationServiceApplication {
         System.out.println("!!!!!!!!!!!!!!!! deleteMigration" + migrationId);
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        Persistence.getInstance().deleteMigration(migrationId);
+        Persistence.getInstance().deleteMigrationRecord(migrationId);
         String returnJson = "{\"status\": \"deleted\" }";
         return Response.ok(returnJson).build();
-    }    
+    }
 
-    
     @PATCH
     @Path("/migrations/{migrationId}")
     @Consumes({MediaType.APPLICATION_JSON})
@@ -186,62 +182,13 @@ public class MigrationServiceApplication {
         System.out.println("!!!!!!!!!!!!!!!! updateMigration" + migrationObject);
         //List<MigrationReportInstance> reports =migrateInstance(plan);
         //System.out.println("!!!!!!!!!!!!!!!!!!!Executing MigrationPlan result: " + reports.toString());
-        Persistence.getInstance().updateMigration(migrationId, migrationObject.getPlanId());
+        Persistence.getInstance().updateMigrationRecord(migrationId, migrationObject.getPlanId(), migrationObject.getProcessInstancesId(), null);
         String returnJson = "{\"status\": \"updated\" }";
         return Response.ok(returnJson).build();
-    }      
-    
-    public static List<MigrationReportInstance> migrateInstance(MigrationPlan plan) throws NamingException {
-
-        ProcessAdminServicesClientImpl client = setupProcessAdminServicesClient(plan, kieServiceUrl, MigrationUtils.getKieUsername(), MigrationUtils.getKiePassword(), plan.isAsync());
-        MigrationPlanUnit unit = plan.getMigrationPlanUnit();
-        List<MigrationReportInstance> reports = client.migrateProcessInstances(unit.getContainerId(), unit.getProcessInstancesId(), unit.getTargetContainerId(), unit.getTargetProcessId(), unit.getNodeMapping());
-        return reports;
     }
-    
-    
+
     private static void logInfo(String message) {
         Logger.getLogger(MigrationServiceApplication.class.getName()).log(Level.INFO, message);
-    }    
-    
-    
-    public static ProcessAdminServicesClientImpl setupProcessAdminServicesClient(MigrationPlan plan, String url, String username, String password, boolean isAsync) throws NamingException {
+    }
 
-
-        KieServicesConfigurationImpl config = null;
-        if (!isAsync) {
-            //REST config for sync mode
-            logInfo("!!!!!!!!!!!!!! sync mode using REST client");
-            config = new KieServicesConfigurationImpl(url, username, password);
-
-        } else {
-            //JMS config for Aysnc mode
-            logInfo("!!!!!!!!!!!!!! Async mode using JMS client");
-            
-            logInfo(" kieJmsServiceUrl: " + kieJmsServiceUrl);
-            logInfo(" username: " + username);
-            logInfo(" password: " + password);
-
-            java.util.Properties env = new java.util.Properties();
-            env.put(javax.naming.Context.INITIAL_CONTEXT_FACTORY, "org.jboss.naming.remote.client.InitialContextFactory");
-            env.put(javax.naming.Context.PROVIDER_URL, kieJmsServiceUrl);
-            env.put(javax.naming.Context.SECURITY_PRINCIPAL, username);
-            env.put(javax.naming.Context.SECURITY_CREDENTIALS, password);
-            InitialContext ctx = new InitialContext(env);
-
-            ConnectionFactory conn = (ConnectionFactory) ctx.lookup(JMS_CONNECTION_FACTORY);
-            Queue respQueue = (Queue) ctx.lookup(JMS_QUEUE_RESPONSE);
-            Queue reqQueue = (Queue) ctx.lookup(JMS_QUEUE_REQUEST);
-
-            config = new KieServicesConfigurationImpl(conn, reqQueue, respQueue, username, password);
-
-        }
-
-        ProcessAdminServicesClientImpl client = new ProcessAdminServicesClientImpl(config);
-        KieServicesClientImpl kieServicesClientImpl = new KieServicesClientImpl(config);
-        client.setOwner(kieServicesClientImpl);
-
-        return client;
-
-    }    
 }

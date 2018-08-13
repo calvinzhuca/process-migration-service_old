@@ -1,28 +1,35 @@
 package com.redhat.syseng.soleng.rhpam.processmigration.util;
 
-
+import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationObject;
 import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlan;
-import javax.servlet.http.HttpServletRequest;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManagerFactory;
-
-import java.io.StringWriter;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.Certificate;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
+import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlanTableObject;
+import com.redhat.syseng.soleng.rhpam.processmigration.model.MigrationPlanUnit;
+import com.redhat.syseng.soleng.rhpam.processmigration.persistence.Persistence;
+import java.text.DateFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.logging.Level;
-
-import org.apache.http.client.utils.URIBuilder;
+import javax.jms.ConnectionFactory;
+import javax.jms.Queue;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
 import org.jboss.resteasy.client.jaxrs.ResteasyClient;
 import org.jboss.resteasy.client.jaxrs.ResteasyClientBuilder;
+import org.jboss.resteasy.client.jaxrs.ResteasyWebTarget;
+
+import org.kie.server.api.model.admin.MigrationReportInstance;
+import org.kie.server.client.admin.impl.ProcessAdminServicesClientImpl;
+import org.kie.server.client.impl.KieServicesClientImpl;
+import org.kie.server.client.impl.KieServicesConfigurationImpl;
 
 public class MigrationUtils {
 
@@ -40,6 +47,12 @@ public class MigrationUtils {
     private static String kiePassword;
     public static String protocol = "http";
     public static String jmsProtocol = "http-remoting";
+
+    private static final String JMS_CONNECTION_FACTORY = "jms/RemoteConnectionFactory";
+    private static final String JMS_QUEUE_REQUEST = "jms/queue/KIE.SERVER.REQUEST";
+    private static final String JMS_QUEUE_RESPONSE = "jms/queue/KIE.SERVER.RESPONSE";
+    private static final String KIE_SERVICE_URL = protocol + "://" + getKieHost() + ":" + getKiePort() + "/" + getKieContextRoot() + "services/rest/server";
+    private static final String KIE_JMS_SERVICE_URL = jmsProtocol + "://" + getKieHost() + ":" + getKiePort();
 
     public static String getKieHost() {
         if (kieHost == null) {
@@ -91,85 +104,96 @@ public class MigrationUtils {
 //                System.out.format("%s=%s%n", envName, envs.get(envName));
             if (envName.contains("KIESERVER_SERVICE_HOST")) {
                 kieHost = envs.get(envName);
-                System.out.println("!!!!!!!!!!!!!!!!!!!!! kieHost " + kieHost);
+                //System.out.println("!!!!!!!!!!!!!!!!!!!!! kieHost " + kieHost);
             } else if (envName.contains("KIESERVER_SERVICE_PORT")) {
                 kiePort = envs.get(envName);
-                System.out.println("!!!!!!!!!!!!!!!!!!!!! kiePort " + kiePort);
+                //System.out.println("!!!!!!!!!!!!!!!!!!!!! kiePort " + kiePort);
             }
         }
 
     }
 
-    private static ResteasyClient createRestClientWithCerts(boolean useOcpCertificate) {
-        ResteasyClient client;
+    private static void logInfo(String message) {
+        Logger.getLogger(MigrationUtils.class.getName()).log(Level.INFO, message);
+    }
 
-        if (useOcpCertificate) {
-            //use the OCP certificate which exist here in every pod: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-            try (FileInputStream in = new FileInputStream("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt")) {
+    public static List<MigrationReportInstance> migrateInstance(MigrationPlan plan, List<Long> processInstancesId) throws NamingException {
+        ProcessAdminServicesClientImpl client = setupProcessAdminServicesClient(plan, KIE_SERVICE_URL, MigrationUtils.getKieUsername(), MigrationUtils.getKiePassword(), plan.isRest());
+        MigrationPlanUnit unit = plan.getMigrationPlanUnit();
+        List<MigrationReportInstance> reports = client.migrateProcessInstances(unit.getContainerId(), processInstancesId, unit.getTargetContainerId(), unit.getTargetProcessId(), unit.getNodeMapping());
+        return reports;
+    }
 
-                CertificateFactory cf = CertificateFactory.getInstance("X.509");
-                Certificate cert = cf.generateCertificate(in);
-                //logger.info("createRestClientWithCerts, created Certificate from /var/run/secrets/kubernetes.io/serviceaccount/ca.crt");
+    public static ProcessAdminServicesClientImpl setupProcessAdminServicesClient(MigrationPlan plan, String url, String username, String password, boolean isRest) throws NamingException {
 
-                // load the keystore that includes self-signed cert as a "trusted" entry
-                KeyStore keyStore = KeyStore.getInstance(KeyStore.getDefaultType());
-                keyStore.load(null, null);
-                TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-                keyStore.setCertificateEntry("ocp-cert", cert);
-                tmf.init(keyStore);
-                SSLContext ctx = SSLContext.getInstance("TLS");
-                ctx.init(null, tmf.getTrustManagers(), null);
-                //logger.info("createRestClientWithCerts, created SSLContext");
+        KieServicesConfigurationImpl config = null;
+        if (isRest) {
+            //REST config for sync mode to KIE server
+            logInfo("!!!!!!!!!!!!!! sync mode using REST client");
+            config = new KieServicesConfigurationImpl(url, username, password);
 
-                //For proper HTTPS authentication
-                ResteasyClientBuilder clientBuilder = new ResteasyClientBuilder();
-                clientBuilder.sslContext(ctx);
-                client = clientBuilder.build();
-            } catch (CertificateException | IOException | KeyStoreException | NoSuchAlgorithmException | KeyManagementException ex) {
-                logger.log(Level.SEVERE, null, ex);
-                throw new IllegalStateException(ex);
-            }
-
-            //use filter to add http header
-            //RestClientRequestFilter filter = new RestClientRequestFilter();
-            //client.register(filter);
         } else {
-            client = new ResteasyClientBuilder().build();
+            //JMS config for aysnc mode to KIE server
+            logInfo("!!!!!!!!!!!!!! Async mode using JMS client");
+
+            logInfo(" kieJmsServiceUrl: " + KIE_JMS_SERVICE_URL);
+            logInfo(" username: " + username);
+            logInfo(" password: " + password);
+
+            java.util.Properties env = new java.util.Properties();
+            env.put(javax.naming.Context.INITIAL_CONTEXT_FACTORY, "org.jboss.naming.remote.client.InitialContextFactory");
+            env.put(javax.naming.Context.PROVIDER_URL, KIE_JMS_SERVICE_URL);
+            env.put(javax.naming.Context.SECURITY_PRINCIPAL, username);
+            env.put(javax.naming.Context.SECURITY_CREDENTIALS, password);
+            InitialContext ctx = new InitialContext(env);
+
+            ConnectionFactory conn = (ConnectionFactory) ctx.lookup(JMS_CONNECTION_FACTORY);
+            Queue respQueue = (Queue) ctx.lookup(JMS_QUEUE_RESPONSE);
+            Queue reqQueue = (Queue) ctx.lookup(JMS_QUEUE_REQUEST);
+
+            config = new KieServicesConfigurationImpl(conn, reqQueue, respQueue, username, password);
+
         }
+
+        ProcessAdminServicesClientImpl client = new ProcessAdminServicesClientImpl(config);
+        KieServicesClientImpl kieServicesClientImpl = new KieServicesClientImpl(config);
+        client.setOwner(kieServicesClientImpl);
+
         return client;
+
     }
 
-    private static URIBuilder getUriBuilder(Object... path) {
+    public static void scheduleMigration(String migrationId, MigrationObject migrationObject, MigrationPlanTableObject planObject) throws ParseException {
+        String inputTime = migrationObject.getExecution().getExecuteTime();
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd hh:mm");
+        Date desiredDate = df.parse(inputTime);
 
-        URIBuilder uriBuilder = new URIBuilder();
-        uriBuilder.setScheme(protocol);
+        long now = System.currentTimeMillis();
+        long delay = desiredDate.getTime() - now;
 
-        uriBuilder.setHost(getKieHost());
-        uriBuilder.setPort(Integer.parseInt(getKiePort()));
+        ScheduledExecutorService ses = Executors.newSingleThreadScheduledExecutor();
+        ses.schedule(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    //boolean Programisrunning = false;
+                    System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!running the scheduler");
 
-        StringWriter stringWriter = new StringWriter();
-        for (Object part : path) {
-            stringWriter.append('/').append(String.valueOf(part));
-        }
-        uriBuilder.setPath(stringWriter.toString());
-        return uriBuilder;
+                    List<MigrationReportInstance> reports = MigrationUtils.migrateInstance(planObject.getMigrationPlan(), migrationObject.getProcessInstancesId());
+
+                    Persistence.getInstance().updateMigrationRecord(migrationId, migrationObject.getPlanId(), migrationObject.getProcessInstancesId(), reports);
+
+                    //call back
+                    ResteasyClient client = new ResteasyClientBuilder().build();
+                    ResteasyWebTarget target = client.target(migrationObject.getExecution().getCallbackUrl());
+                    Response response = target.request().post(Entity.text(reports));
+                    
+                } catch (NamingException ex) {
+                    Logger.getLogger(MigrationUtils.class.getName()).log(Level.SEVERE, null, ex);
+                }
+
+            }
+        }, delay, TimeUnit.MILLISECONDS); // run in "delay" millis            
     }
 
-
-
-
-
-
-    public static MigrationPlan getLoginInfo(HttpServletRequest request) {
-        MigrationPlan customer = new MigrationPlan();
-        return customer;
-    }
-
-
-
-
-
-
-
-    
 }
